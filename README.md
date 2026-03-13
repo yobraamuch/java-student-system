@@ -44,20 +44,16 @@ student-library-system/
 
 ### Compiling the Project
 
-To compile all Java source files into the `bin/` directory, run the following command from the root directory:
+To compile all Java source files into the `bin/` directory, run the following command from the root directory. This command uses `find` to locate all `.java` files and then passes them to `javac` with `src` as the source path.
 
 ```bash
-javac -d bin src/com/university/system/*.java \
-      src/com/university/system/database/*.java \
-      src/com/university/system/model/*.java \
-      src/com/university/system/controller/*.java \
-      src/com/university/system/view/*.java
+javac -d bin -sourcepath src $(find src -name "*.java")
 ```
 
-Alternatively, you can use the following command to find and compile all Java files at once:
+Alternatively, if your shell supports globbing (like Bash 4+ or Zsh), you can use:
 
 ```bash
-find src -name "*.java" | xargs javac -d bin
+javac -d bin -sourcepath src src/com/university/system/**/*.java
 ```
 
 ### Running the Application
