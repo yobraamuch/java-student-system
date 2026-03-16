@@ -1,4 +1,7 @@
-package com.university.system.model;
+package com.university.system.model;(
 
 public class Book {
+    public Book(){
+        
+    }
 }
