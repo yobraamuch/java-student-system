@@ -1,5 +1,6 @@
 package com.university.system.model;
 
+<<<<<<< HEAD
 /**
  * Represents a person in the university system.
  * This is a base class for Student and Lecturer.
@@ -61,3 +62,7 @@ public abstract class Person {
                 '}';
     }
 }
+=======
+
+public class Person {}
+>>>>>>> a884c7b (started on Admin controller)
