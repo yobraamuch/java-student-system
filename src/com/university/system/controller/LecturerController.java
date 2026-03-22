@@ -229,4 +229,243 @@ public class LecturerController {
             return false;
         }
     }
+
+    // =========================
+    // PROFILE
+    // =========================
+    public boolean updateEmail(int personId, String email) {
+        String sql = "UPDATE person SET email=? WHERE id=?";
+        try (Connection conn = DatabaseConnection.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setString(1, email);
+            stmt.setInt(2, personId);
+            return stmt.executeUpdate() > 0;
+        } catch (SQLException e) {
+            e.printStackTrace();
+            return false;
+        }
+    }
+
+    public boolean updatePhone(int personId, String phone) {
+        String sql = "UPDATE person SET phone=? WHERE id=?";
+        try (Connection conn = DatabaseConnection.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setString(1, phone);
+            stmt.setInt(2, personId);
+            return stmt.executeUpdate() > 0;
+        } catch (SQLException e) {
+            e.printStackTrace();
+            return false;
+        }
+    }
+
+    public boolean updateAddress(int personId, String address) {
+        String sql = "UPDATE person SET address=? WHERE id=?";
+        try (Connection conn = DatabaseConnection.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setString(1, address);
+            stmt.setInt(2, personId);
+            return stmt.executeUpdate() > 0;
+        } catch (SQLException e) {
+            e.printStackTrace();
+            return false;
+        }
+    }
+
+    // =========================
+    // ACADEMIC
+    // =========================
+    public List<Course> viewAssignedCourses(int lecturerId) {
+        List<Course> courses = new ArrayList<>();
+        String sql = "SELECT * FROM course WHERE lecturer_id = ?";
+        try (Connection conn = DatabaseConnection.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setInt(1, lecturerId);
+            try (ResultSet rs = stmt.executeQuery()) {
+                while (rs.next()) {
+                    courses.add(new Course(
+                            rs.getString("course_code"),
+                            rs.getString("title"),
+                            rs.getInt("credits"),
+                            rs.getString("description"),
+                            rs.getInt("lecturer_id")));
+                }
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return courses;
+    }
+
+    public List<Student> viewAllStudentsInCourse(String courseCode) {
+        List<Student> students = new ArrayList<>();
+        String sql =
+                "SELECT s.*, p.*, s.id as student_id, p.id as person_id FROM student s "
+                        + "JOIN person p ON s.id = p.id "
+                        + "JOIN student_course sc ON s.id = sc.student_id "
+                        + "WHERE sc.course_code = ?";
+        try (Connection conn = DatabaseConnection.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setString(1, courseCode);
+            try (ResultSet rs = stmt.executeQuery()) {
+                while (rs.next()) {
+                    students.add(
+                            new Student(
+                                    rs.getInt("student_id"),
+                                    rs.getString("first_name"),
+                                    rs.getString("last_name"),
+                                    rs.getString("email"),
+                                    rs.getString("phone"),
+                                    rs.getString("address"),
+                                    rs.getBoolean("is_active"),
+                                    rs.getString("registration_number"),
+                                    rs.getString("programme"),
+                                    rs.getDate("enrollment_date").toLocalDate(),
+                                    rs.getInt("current_year")));
+                }
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return students;
+    }
+
+    public List<Student> viewAllStudentsAcrossCourses(int lecturerId) {
+        List<Student> students = new ArrayList<>();
+        String sql = "SELECT DISTINCT s.*, p.*, s.id as student_id, p.id as person_id FROM student s " +
+                "JOIN person p ON s.id = p.id " +
+                "JOIN student_course sc ON s.id = sc.student_id " +
+                "JOIN course c ON sc.course_code = c.course_code " +
+                "WHERE c.lecturer_id = ?";
+        try (Connection conn = DatabaseConnection.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setInt(1, lecturerId);
+            try (ResultSet rs = stmt.executeQuery()) {
+                while (rs.next()) {
+                    students.add(
+                            new Student(
+                                    rs.getInt("student_id"),
+                                    rs.getString("first_name"),
+                                    rs.getString("last_name"),
+                                    rs.getString("email"),
+                                    rs.getString("phone"),
+                                    rs.getString("address"),
+                                    rs.getBoolean("is_active"),
+                                    rs.getString("registration_number"),
+                                    rs.getString("programme"),
+                                    rs.getDate("enrollment_date").toLocalDate(),
+                                    rs.getInt("current_year")));
+                }
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return students;
+    }
+
+    // =========================
+    // SCORES
+    // =========================
+    public boolean addScore(Score score) {
+        String sql = "INSERT INTO score (student_id, course_code, cat_score, exam_score, grade, academic_year, semester) VALUES (?, ?, ?, ?, ?, ?, ?)";
+        try (Connection conn = DatabaseConnection.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setInt(1, score.getStudentId());
+            stmt.setString(2, score.getCourseCode());
+            stmt.setDouble(3, score.getCatScore());
+            stmt.setDouble(4, score.getExamScore());
+            stmt.setString(5, score.getGrade());
+            stmt.setString(6, score.getAcademicYear());
+            stmt.setInt(7, score.getSemester());
+            return stmt.executeUpdate() > 0;
+        } catch (SQLException e) {
+            e.printStackTrace();
+            return false;
+        }
+    }
+
+    public boolean updateScore(Score score) {
+        String sql = "UPDATE score SET cat_score=?, exam_score=?, grade=?, academic_year=?, semester=? WHERE id=?";
+        try (Connection conn = DatabaseConnection.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setDouble(1, score.getCatScore());
+            stmt.setDouble(2, score.getExamScore());
+            stmt.setString(3, score.getGrade());
+            stmt.setString(4, score.getAcademicYear());
+            stmt.setInt(5, score.getSemester());
+            stmt.setInt(6, score.getId());
+            return stmt.executeUpdate() > 0;
+        } catch (SQLException e) {
+            e.printStackTrace();
+            return false;
+        }
+    }
+
+    public List<Score> viewScoresForCourse(String courseCode) {
+        List<Score> scores = new ArrayList<>();
+        String sql = "SELECT * FROM score WHERE course_code = ?";
+        try (Connection conn = DatabaseConnection.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setString(1, courseCode);
+            try (ResultSet rs = stmt.executeQuery()) {
+                while (rs.next()) {
+                    scores.add(
+                            new Score(
+                                    rs.getInt("id"),
+                                    rs.getInt("student_id"),
+                                    rs.getString("course_code"),
+                                    rs.getDouble("cat_score"),
+                                    rs.getDouble("exam_score"),
+                                    rs.getDouble("total_score"),
+                                    rs.getString("grade"),
+                                    rs.getString("academic_year"),
+                                    rs.getInt("semester")));
+                }
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return scores;
+    }
+
+    public List<Score> viewScoresForStudentInCourse(int studentId, String courseCode) {
+        List<Score> scores = new ArrayList<>();
+        String sql = "SELECT * FROM score WHERE student_id = ? AND course_code = ?";
+        try (Connection conn = DatabaseConnection.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setInt(1, studentId);
+            stmt.setString(2, courseCode);
+            try (ResultSet rs = stmt.executeQuery()) {
+                while (rs.next()) {
+                    scores.add(
+                            new Score(
+                                    rs.getInt("id"),
+                                    rs.getInt("student_id"),
+                                    rs.getString("course_code"),
+                                    rs.getDouble("cat_score"),
+                                    rs.getDouble("exam_score"),
+                                    rs.getDouble("total_score"),
+                                    rs.getString("grade"),
+                                    rs.getString("academic_year"),
+                                    rs.getInt("semester")));
+                }
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return scores;
+    }
+
+    public ResultSet generateResultSlip(String registrationNumber) {
+        String sql = "SELECT * FROM student_result_slip WHERE registration_number = ?";
+        try {
+            Connection conn = DatabaseConnection.getConnection();
+            PreparedStatement stmt = conn.prepareStatement(sql);
+            stmt.setString(1, registrationNumber);
+            return stmt.executeQuery();
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return null;
+    }
 }

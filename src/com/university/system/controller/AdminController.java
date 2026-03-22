@@ -232,116 +232,11 @@ public class AdminController {
   }
 
   public List<Student> viewAllStudentsInCourse(String courseCode) {
-    List<Student> students = new ArrayList<>();
-    String sql =
-        "SELECT s.*, p.*, s.id as student_id, p.id as person_id FROM student s "
-            + "JOIN person p ON s.id = p.id "
-            + "JOIN student_course sc ON s.id = sc.student_id "
-            + "WHERE sc.course_code = ?";
-    try (Connection conn = DatabaseConnection.getConnection();
-        PreparedStatement stmt = conn.prepareStatement(sql)) {
-      stmt.setString(1, courseCode);
-      try (ResultSet rs = stmt.executeQuery()) {
-        while (rs.next()) {
-          students.add(
-              new Student(
-                  rs.getInt("student_id"),
-                  rs.getString("first_name"),
-                  rs.getString("last_name"),
-                  rs.getString("email"),
-                  rs.getString("phone"),
-                  rs.getString("address"),
-                  rs.getBoolean("is_active"),
-                  rs.getString("registration_number"),
-                  rs.getString("programme"),
-                  rs.getDate("enrollment_date").toLocalDate(),
-                  rs.getInt("current_year")));
-        }
-      }
-    } catch (SQLException e) {
-      e.printStackTrace();
-    }
-    return students;
-  }
-
-  public List<Course> viewAllCoursesForStudent(int studentId) {
-    List<Course> courses = new ArrayList<>();
-    String sql =
-        "SELECT c.* FROM course c "
-            + "JOIN student_course sc ON c.course_code = sc.course_code "
-            + "WHERE sc.student_id = ?";
-    try (Connection conn = DatabaseConnection.getConnection();
-        PreparedStatement stmt = conn.prepareStatement(sql)) {
-      stmt.setInt(1, studentId);
-      try (ResultSet rs = stmt.executeQuery()) {
-        while (rs.next()) {
-          courses.add(
-              new Course(
-                  rs.getString("course_code"),
-                  rs.getString("title"),
-                  rs.getInt("credits"),
-                  rs.getString("description"),
-                  rs.getInt("lecturer_id")));
-        }
-      }
-    } catch (SQLException e) {
-      e.printStackTrace();
-    }
-    return courses;
-  }
-
-  // ========== SCORE MANAGEMENT ==========
-
-  public List<Score> viewScoresForStudent(int studentId) {
-    List<Score> scores = new ArrayList<>();
-    String sql = "SELECT * FROM score WHERE student_id = ?";
-    try (Connection conn = DatabaseConnection.getConnection();
-        PreparedStatement stmt = conn.prepareStatement(sql)) {
-      stmt.setInt(1, studentId);
-      try (ResultSet rs = stmt.executeQuery()) {
-        while (rs.next()) {
-          scores.add(
-              new Score(
-                  rs.getInt("id"),
-                  rs.getInt("student_id"),
-                  rs.getString("course_code"),
-                  rs.getDouble("cat_score"),
-                  rs.getDouble("exam_score"),
-                  rs.getString("grade"),
-                  rs.getString("academic_year"),
-                  rs.getInt("semester")));
-        }
-      }
-    } catch (SQLException e) {
-      e.printStackTrace();
-    }
-    return scores;
+    return lecturerController.viewAllStudentsInCourse(courseCode);
   }
 
   public List<Score> viewScoresForCourse(String courseCode) {
-    List<Score> scores = new ArrayList<>();
-    String sql = "SELECT * FROM score WHERE course_code = ?";
-    try (Connection conn = DatabaseConnection.getConnection();
-        PreparedStatement stmt = conn.prepareStatement(sql)) {
-      stmt.setString(1, courseCode);
-      try (ResultSet rs = stmt.executeQuery()) {
-        while (rs.next()) {
-          scores.add(
-              new Score(
-                  rs.getInt("id"),
-                  rs.getInt("student_id"),
-                  rs.getString("course_code"),
-                  rs.getDouble("cat_score"),
-                  rs.getDouble("exam_score"),
-                  rs.getString("grade"),
-                  rs.getString("academic_year"),
-                  rs.getInt("semester")));
-        }
-      }
-    } catch (SQLException e) {
-      e.printStackTrace();
-    }
-    return scores;
+    return lecturerController.viewScoresForCourse(courseCode);
   }
 
   public List<Score> viewAllScores() {
@@ -369,16 +264,7 @@ public class AdminController {
   }
 
   public ResultSet generateResultSlip(String registrationNumber) {
-    String sql = "SELECT * FROM student_result_slip WHERE registration_number = ?";
-    try {
-      Connection conn = DatabaseConnection.getConnection();
-      PreparedStatement stmt = conn.prepareStatement(sql);
-      stmt.setString(1, registrationNumber);
-      return stmt.executeQuery();
-    } catch (SQLException e) {
-      e.printStackTrace();
-    }
-    return null;
+    return lecturerController.generateResultSlip(registrationNumber);
   }
 
   // ========== LIBRARY OVERSIGHT ==========
@@ -463,33 +349,7 @@ public class AdminController {
     return records;
   }
 
-  public List<BorrowRecord> viewStudentBorrowHistory(int studentId) {
-    List<BorrowRecord> records = new ArrayList<>();
-    String sql = "SELECT * FROM borrow_record WHERE student_id = ?";
-    try (Connection conn = DatabaseConnection.getConnection();
-        PreparedStatement stmt = conn.prepareStatement(sql)) {
-      stmt.setInt(1, studentId);
-      try (ResultSet rs = stmt.executeQuery()) {
-        while (rs.next()) {
-          records.add(
-              new BorrowRecord(
-                  rs.getInt("id"),
-                  rs.getString("book_isbn"),
-                  rs.getInt("student_id"),
-                  rs.getDate("borrow_date").toLocalDate(),
-                  rs.getDate("due_date").toLocalDate(),
-                  rs.getDate("return_date") != null
-                      ? rs.getDate("return_date").toLocalDate()
-                      : null,
-                  rs.getString("status"),
-                  rs.getDouble("fine_amount")));
-        }
-      }
-    } catch (SQLException e) {
-      e.printStackTrace();
-    }
-    return records;
-  }
+
 
   public List<Map<String, Object>> viewAllOverdueBooks() {
     List<Map<String, Object>> overdueBooks = new ArrayList<>();
@@ -545,10 +405,31 @@ public class AdminController {
   public Map<String, Object> fullStudentReport(int studentId) {
     Map<String, Object> report = new java.util.HashMap<>();
     report.put("profile", studentController.getStudentById(studentId));
-    report.put("courses", viewAllCoursesForStudent(studentId));
-    report.put("scores", viewScoresForStudent(studentId));
-    report.put("library", viewStudentBorrowHistory(studentId));
+    report.put("courses", studentController.viewEnrolledCourses(studentId));
+    report.put("scores", studentController.viewScores(studentId));
+    report.put("library", studentController.viewBorrowHistory(studentId));
     return report;
+  }
+
+  public List<Course> viewAllCoursesForStudent(int studentId) {
+    return studentController.viewEnrolledCourses(studentId);
+  }
+
+  public List<Score> viewScoresForStudent(int studentId) {
+    return studentController.viewScores(studentId);
+  }
+
+  public List<BorrowRecord> viewStudentBorrowHistory(int studentId) {
+    return studentController.viewBorrowHistory(studentId);
+  }
+
+  public ResultSet generateResultSlip(String registrationNumber) {
+    return studentController.viewResultSlip(studentController.getStudent(registrationNumber).getId());
+  }
+
+
+  public List<Student> viewAllStudentsInCourse(String courseCode) {
+    return lecturerController.viewAllStudentsInCourse(courseCode);
   }
 
   public Map<String, Object> fullLecturerReport(int lecturerId) {
@@ -575,6 +456,14 @@ public class AdminController {
       e.printStackTrace();
     }
     report.put("courses", courses);
+
+    // Get students for each course
+    Map<String, List<Student>> studentsPerCourse = new java.util.HashMap<>();
+    for (Course course : courses) {
+      studentsPerCourse.put(course.getCourseCode(), lecturerController.viewAllStudentsInCourse(course.getCourseCode()));
+    }
+    report.put("students_per_course", studentsPerCourse);
+    
     return report;
   }
 

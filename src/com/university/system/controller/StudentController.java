@@ -238,4 +238,344 @@ public class StudentController {
       return false;
     }
   }
+
+  // =========================
+  // PROFILE
+  // =========================
+  public boolean updateEmail(int personId, String email) {
+    String sql = "UPDATE person SET email=? WHERE id=?";
+    try (Connection conn = DatabaseConnection.getConnection();
+        PreparedStatement stmt = conn.prepareStatement(sql)) {
+      stmt.setString(1, email);
+      stmt.setInt(2, personId);
+      return stmt.executeUpdate() > 0;
+    } catch (SQLException e) {
+      e.printStackTrace();
+      return false;
+    }
+  }
+
+  public boolean updatePhone(int personId, String phone) {
+    String sql = "UPDATE person SET phone=? WHERE id=?";
+    try (Connection conn = DatabaseConnection.getConnection();
+        PreparedStatement stmt = conn.prepareStatement(sql)) {
+      stmt.setString(1, phone);
+      stmt.setInt(2, personId);
+      return stmt.executeUpdate() > 0;
+    } catch (SQLException e) {
+      e.printStackTrace();
+      return false;
+    }
+  }
+
+  public boolean updateAddress(int personId, String address) {
+    String sql = "UPDATE person SET address=? WHERE id=?";
+    try (Connection conn = DatabaseConnection.getConnection();
+        PreparedStatement stmt = conn.prepareStatement(sql)) {
+      stmt.setString(1, address);
+      stmt.setInt(2, personId);
+      return stmt.executeUpdate() > 0;
+    } catch (SQLException e) {
+      e.printStackTrace();
+      return false;
+    }
+  }
+
+  // =========================
+  // ACADEMIC
+  // =========================
+    public List<Course> viewEnrolledCourses(int studentId) {
+        List<Course> courses = new ArrayList<>();
+        String sql =
+                "SELECT c.* FROM course c "
+                        + "JOIN student_course sc ON c.course_code = sc.course_code "
+                        + "WHERE sc.student_id = ?";
+        try (Connection conn = DatabaseConnection.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setInt(1, studentId);
+            try (ResultSet rs = stmt.executeQuery()) {
+                while (rs.next()) {
+                    courses.add(
+                            new Course(
+                                    rs.getString("course_code"),
+                                    rs.getString("title"),
+                                    rs.getInt("credits"),
+                                    rs.getString("description"),
+                                    rs.getInt("lecturer_id")));
+                }
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return courses;
+    }
+
+    public List<Score> viewScores(int studentId) {
+        List<Score> scores = new ArrayList<>();
+        String sql = "SELECT * FROM score WHERE student_id = ?";
+        try (Connection conn = DatabaseConnection.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setInt(1, studentId);
+            try (ResultSet rs = stmt.executeQuery()) {
+                while (rs.next()) {
+                    scores.add(
+                            new Score(
+                                    rs.getInt("id"),
+                                    rs.getInt("student_id"),
+                                    rs.getString("course_code"),
+                                    rs.getDouble("cat_score"),
+                                    rs.getDouble("exam_score"),
+                                    rs.getDouble("total_score"),
+                                    rs.getString("grade"),
+                                    rs.getString("academic_year"),
+                                    rs.getInt("semester")));
+                }
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return scores;
+    }
+
+  public ResultSet viewResultSlip(int studentId) {
+    // This method can be improved to return a structured object
+    String regNumber = getStudentById(studentId).getRegistrationNumber();
+    String sql = "SELECT * FROM student_result_slip WHERE registration_number = ?";
+    try {
+      Connection conn = DatabaseConnection.getConnection();
+      PreparedStatement stmt = conn.prepareStatement(sql);
+      stmt.setString(1, regNumber);
+      return stmt.executeQuery();
+    } catch (SQLException e) {
+      e.printStackTrace();
+    }
+    return null;
+  }
+
+  public double calculateGPA(int studentId) {
+    List<Score> scores = viewScores(studentId);
+    if (scores.isEmpty()) {
+      return 0.0;
+    }
+
+    double totalGradePoints = 0;
+    for (Score score : scores) {
+      totalGradePoints += convertGradeToGPA(score.getGrade());
+    }
+
+    return totalGradePoints / scores.size();
+  }
+
+  private double convertGradeToGPA(String grade) {
+    if (grade == null) return 0.0;
+    switch (grade.toUpperCase()) {
+      case "A": return 4.0;
+      case "B": return 3.0;
+      case "C": return 2.0;
+      case "D": return 1.0;
+      default: return 0.0;
+    }
+  }
+
+  // =========================
+  // LIBRARY
+  // =========================
+  public List<Book> searchBooks(String query) {
+    List<Book> books = new ArrayList<>();
+    String sql = "SELECT * FROM book_search WHERE title LIKE ? OR author LIKE ? OR isbn LIKE ?";
+    try (Connection conn = DatabaseConnection.getConnection();
+        PreparedStatement stmt = conn.prepareStatement(sql)) {
+      String searchQuery = "%" + query + "%";
+      stmt.setString(1, searchQuery);
+      stmt.setString(2, searchQuery);
+      stmt.setString(3, searchQuery);
+      try (ResultSet rs = stmt.executeQuery()) {
+        while (rs.next()) {
+          books.add(new Book(
+              rs.getString("isbn"),
+              rs.getString("title"),
+              rs.getString("author"),
+              rs.getString("publisher"),
+              rs.getString("edition"),
+              rs.getString("version"),
+              rs.getInt("year_published"),
+              rs.getInt("total_copies"),
+              rs.getInt("available_copies")
+          ));
+        }
+      }
+    } catch (SQLException e) {
+      e.printStackTrace();
+    }
+    return books;
+  }
+
+  public boolean checkBookAvailability(String isbn) {
+    String sql = "SELECT available_copies FROM book WHERE isbn = ?";
+    try (Connection conn = DatabaseConnection.getConnection();
+        PreparedStatement stmt = conn.prepareStatement(sql)) {
+      stmt.setString(1, isbn);
+      try (ResultSet rs = stmt.executeQuery()) {
+        if (rs.next()) {
+          return rs.getInt("available_copies") > 0;
+        }
+      }
+    } catch (SQLException e) {
+      e.printStackTrace();
+    }
+    return false;
+  }
+
+  public boolean reserveBook(int studentId, String isbn) {
+    if (!checkBookAvailability(isbn)) {
+      return false;
+    }
+    String sql = "INSERT INTO reservation (student_id, book_isbn) VALUES (?, ?)";
+    try (Connection conn = DatabaseConnection.getConnection();
+        PreparedStatement stmt = conn.prepareStatement(sql)) {
+      stmt.setInt(1, studentId);
+      stmt.setString(2, isbn);
+      int updatedRows = stmt.executeUpdate();
+      if (updatedRows > 0) {
+        String sqlUpdate = "UPDATE book SET available_copies = available_copies - 1 WHERE isbn = ?";
+        try (PreparedStatement stmtUpdate = conn.prepareStatement(sqlUpdate)) {
+          stmtUpdate.setString(1, isbn);
+          stmtUpdate.executeUpdate();
+        }
+        return true;
+      }
+    } catch (SQLException e) {
+      e.printStackTrace();
+    }
+    return false;
+  }
+
+  public boolean cancelReservation(int reservationId) {
+    String sql = "UPDATE reservation SET status = 'cancelled' WHERE id = ?";
+    try (Connection conn = DatabaseConnection.getConnection();
+        PreparedStatement stmt = conn.prepareStatement(sql)) {
+      stmt.setInt(1, reservationId);
+      int updatedRows = stmt.executeUpdate();
+      if (updatedRows > 0) {
+        String sqlSelect = "SELECT book_isbn FROM reservation WHERE id = ?";
+        try (PreparedStatement stmtSelect = conn.prepareStatement(sqlSelect)) {
+          stmtSelect.setInt(1, reservationId);
+          try (ResultSet rs = stmtSelect.executeQuery()) {
+            if (rs.next()) {
+              String isbn = rs.getString("book_isbn");
+              String sqlUpdate = "UPDATE book SET available_copies = available_copies + 1 WHERE isbn = ?";
+              try (PreparedStatement stmtUpdate = conn.prepareStatement(sqlUpdate)) {
+                stmtUpdate.setString(1, isbn);
+                stmtUpdate.executeUpdate();
+              }
+            }
+          }
+        }
+        return true;
+      }
+    } catch (SQLException e) {
+      e.printStackTrace();
+    }
+    return false;
+  }
+
+  public List<BorrowRecord> viewActiveBorrows(int studentId) {
+    List<BorrowRecord> records = new ArrayList<>();
+    String sql = "SELECT * FROM borrow_record WHERE student_id = ? AND status = 'borrowed'";
+    try (Connection conn = DatabaseConnection.getConnection();
+        PreparedStatement stmt = conn.prepareStatement(sql)) {
+      stmt.setInt(1, studentId);
+      try (ResultSet rs = stmt.executeQuery()) {
+        while (rs.next()) {
+          records.add(
+              new BorrowRecord(
+                  rs.getInt("id"),
+                  rs.getString("book_isbn"),
+                  rs.getInt("student_id"),
+                  rs.getDate("borrow_date").toLocalDate(),
+                  rs.getDate("due_date").toLocalDate(),
+                  rs.getDate("return_date") != null
+                      ? rs.getDate("return_date").toLocalDate()
+                      : null,
+                  rs.getString("status"),
+                  rs.getDouble("fine_amount")));
+        }
+      }
+    } catch (SQLException e) {
+      e.printStackTrace();
+    }
+    return records;
+  }
+
+    public List<BorrowRecord> viewBorrowHistory(int studentId) {
+        List<BorrowRecord> records = new ArrayList<>();
+        String sql = "SELECT * FROM borrow_record WHERE student_id = ?";
+        try (Connection conn = DatabaseConnection.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setInt(1, studentId);
+            try (ResultSet rs = stmt.executeQuery()) {
+                while (rs.next()) {
+                    records.add(
+                            new BorrowRecord(
+                                    rs.getInt("id"),
+                                    rs.getString("book_isbn"),
+                                    rs.getInt("student_id"),
+                                    rs.getDate("borrow_date").toLocalDate(),
+                                    rs.getDate("due_date").toLocalDate(),
+                                    rs.getDate("return_date") != null
+                                            ? rs.getDate("return_date").toLocalDate()
+                                            : null,
+                                    rs.getString("status"),
+                                    rs.getDouble("fine_amount")));
+                }
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return records;
+    }
+
+  public List<BorrowRecord> viewOverdueBooks(int studentId) {
+    List<BorrowRecord> records = new ArrayList<>();
+    String sql = "SELECT * FROM borrow_record WHERE student_id = ? AND status = 'overdue'";
+    try (Connection conn = DatabaseConnection.getConnection();
+        PreparedStatement stmt = conn.prepareStatement(sql)) {
+      stmt.setInt(1, studentId);
+      try (ResultSet rs = stmt.executeQuery()) {
+        while (rs.next()) {
+          records.add(
+              new BorrowRecord(
+                  rs.getInt("id"),
+                  rs.getString("book_isbn"),
+                  rs.getInt("student_id"),
+                  rs.getDate("borrow_date").toLocalDate(),
+                  rs.getDate("due_date").toLocalDate(),
+                  rs.getDate("return_date") != null
+                      ? rs.getDate("return_date").toLocalDate()
+                      : null,
+                  rs.getString("status"),
+                  rs.getDouble("fine_amount")));
+        }
+      }
+    } catch (SQLException e) {
+      e.printStackTrace();
+    }
+    return records;
+  }
+
+  public double viewFines(int studentId) {
+    String sql = "SELECT SUM(fine_amount) FROM borrow_record WHERE student_id = ?";
+    try (Connection conn = DatabaseConnection.getConnection();
+        PreparedStatement stmt = conn.prepareStatement(sql)) {
+      stmt.setInt(1, studentId);
+      try (ResultSet rs = stmt.executeQuery()) {
+        if (rs.next()) {
+          return rs.getDouble(1);
+        }
+      }
+    } catch (SQLException e) {
+      e.printStackTrace();
+    }
+    return 0.0;
+  }
 }
